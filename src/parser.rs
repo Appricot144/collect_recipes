@@ -1,3 +1,4 @@
+
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 use crate::block::{
@@ -6,40 +7,57 @@ use crate::block::{
 	ResourceBlock,
 	IfBlock,
 	CaseBlock,
-	Property,
+	Property, UnknownBlock,
 };
+
+pub enum Status {
+	Signature,
+	Contents,
+}
 
 pub struct Parser<'a> {
 	pub reader: BufReader<&'a std::fs::File>,
 	pub block: Block,
+	pub status: Status,
 }
 
 impl<'a> Parser<'a> {
 	pub fn new(f: &File) -> Parser {
 		let parser = Parser {
-			reader: { BufReader::new(f) },
-			block: { Block::Eof },
+			reader: BufReader::new(f),
+			block: Block::Eof,
+			status: Status::Signature,
 		};
 		parser
 	}
 
 	pub fn next_line(&mut self) -> String {
 		let mut line = String::new();
-		let mut num_bytes = self.reader.read_line(&mut line).expect("failed to read line");
 
-		while num_bytes == 1 { //skip Blank-line
-			line.clear();
-			num_bytes = self.reader.read_line(&mut line).expect("failed to read line");
-		}
+		loop {
+			let num_bytes = self.reader.read_line(&mut line).expect("failed to read line");
 
-		for (i, l) in line.as_str().chars().enumerate(){ //skip Comment-out
-			if l == '#' {
-				line = (&line[..i]).to_string();
-				break;
+			//ret EoF
+			if num_bytes == 0 {
+				return line
 			}
+
+
+			//strip Comment-out	
+			for (i, l) in line.as_str().chars().enumerate() {
+				if l == '#' {
+					line = (&line[..i]).to_string();
+					break
+				}
+			}
+
+			//skip Blank-line, space, tab
+			let white: &[_] = &[' ', '\t', '\n'];
+			line = line.trim_start_matches(white).to_string();
+			if line.len() == 0 { continue }
+
+			return line
 		}
-		
-		line
 	}
 	
 	// do_parse
@@ -88,11 +106,17 @@ impl<'a> Parser<'a> {
 			self.block = Block::When(vec![words[0].to_string(),words[1].to_string()]);
 			self
 		} else if words[0] == "end" {
+			self.status = Status::Signature;
 			self.block = Block::End;
 			self
 		} else {
-			self.block = Property::create_property(words);
-			self
+			if let Status::Contents = self.status {
+				self.block = Property::create_property(words);
+				self
+			} else { 		// 読めない構文
+				self.block = UnknownBlock::create_block(words);
+				self
+			}
 		}
 	}
 

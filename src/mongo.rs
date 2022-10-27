@@ -15,10 +15,10 @@ pub struct ConnectionInfo<'a> {
 impl<'a> ConnectionInfo<'a> {
 	pub fn new() -> ConnectionInfo<'a> {
 		ConnectionInfo {
-			url_str: "mongodb://localhost:27017",
-			app_name: "collect recipe program",
-			db_name: "test",				// "chef_recipes"
-			cll_name: "test_collection"		// "structs"
+			url_str: 	"mongodb://localhost:27017",
+			app_name:	"collect recipe program",
+			db_name: 	"test",						// "chef_recipes"
+			cll_name: 	"test_collection"			// "structs"
 		}
 	}
 

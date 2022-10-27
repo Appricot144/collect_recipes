@@ -1,5 +1,5 @@
 use serde::Serialize;
-use crate::parser::Parser;
+use crate::parser::{Parser, Status};
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Block {
@@ -12,7 +12,8 @@ pub enum Block {
 	Elsif(Vec<String>),	// この辺のBlockは制御用のもの
 	Else,				// 構造体のcontentsには、このBlockの種類は格納されない
 	End,				//
-	Eof,		
+	Eof,
+	Unknown(UnknownBlock),
 }
 
 // enum WordType {	// トークンを定義するならこんな感じだろう
@@ -34,6 +35,21 @@ pub enum Block {
 // }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct UnknownBlock {
+	token1: String,
+}
+
+impl UnknownBlock {
+	pub fn create_block(words: Vec<&str>) -> Block {
+		let unknown_block = UnknownBlock {
+			token1: words[0].to_string(),
+		};
+		Block::Unknown(unknown_block)
+	}
+}
+
+
+#[derive(Debug, Clone, Serialize)]
 pub struct StatementBlock {
 	statement_type: String,
 	statement_name: String,
@@ -47,6 +63,8 @@ impl StatementBlock {
 			statement_name: words[1].to_string(),
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
+				parser.status = Status::Contents;
+				
 				loop {
 					parser = parser.do_parse();
 					if let Block::End = parser.block {
@@ -54,6 +72,7 @@ impl StatementBlock {
 					}
 					blocks.push(parser.block.clone());
 				}
+				
 				blocks
 			},		
 		};
@@ -88,7 +107,8 @@ impl IfBlock {
 		loop {
 			match self.status {
 				IfStatus::Elsif(ref exp) => {
-					parser = self.create_elsif_block(exp.to_vec(), parser);
+					let e = exp.clone();
+					parser = self.create_elsif_block(e.to_vec(), parser);
 				},	
 				IfStatus::Else => {
 					parser = self.create_else_block(parser);
@@ -228,7 +248,8 @@ impl CaseBlock {
 		loop {
 			match self.status {
 				CaseStatus::When(ref exp) => {
-					parser = self.create_when_block(exp.to_vec(), parser);
+					let e = exp.clone();
+					parser = self.create_when_block(e.to_vec(), parser);
 				},
 				CaseStatus::Else => {
 					parser = self.create_else_block(parser);
@@ -283,6 +304,8 @@ impl CaseBlock {
 			statement_name: words[1].clone(),
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
+				parser.status = Status::Contents;
+				
 				loop {
 					parser = parser.do_parse();
 					match parser.block {
@@ -316,6 +339,8 @@ impl CaseBlock {
 			statement_name: "".to_string(),
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
+				parser.status = Status::Contents;
+				
 				loop {
 					parser = parser.do_parse();
 					match parser.block {
@@ -334,6 +359,7 @@ impl CaseBlock {
 						}
 					}
 				}
+				
 				blocks
 			},
 		};
@@ -365,6 +391,8 @@ impl ResourceBlock {
 			resource_name: words[1].to_string(),
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
+				parser.status = Status::Contents;
+				
 				loop {
 					parser = parser.do_parse();
 					if let Block::End = parser.block {
@@ -372,6 +400,7 @@ impl ResourceBlock {
 					}
 					blocks.push(parser.block.clone());
 				}
+				
 				blocks
 			},
 		};
