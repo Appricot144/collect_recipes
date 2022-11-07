@@ -28,11 +28,10 @@ fn main() {
 	let filename = &args[1];
 
 	// open file
-	println!("In recipe file {}",filename);
+	println!(" -- In recipe file \"{}\"",filename);
 	let f = File::open(filename).expect("Failed open file");
 
 	// parse recipe file
-	println!("parsing recipe file");
 	let blocks = parse_file(&f);
 
 	// print blocks
@@ -40,9 +39,12 @@ fn main() {
 	// 	block.print_block();
 	// }
 
-	// connecting to mongo
-	println!("connecting to my mongoDB");
-	println!("inserting documents into my collection");
+	// no documents
+	if blocks.len() == 0 {
+		panic!("no-document found");
+	}
+
+	// connect mongo
 	let mongo = ConnectionInfo::new();
 	let ls = tokio::task::LocalSet::new();
 	let rt = tokio::runtime::Builder::new_multi_thread()
@@ -50,4 +52,5 @@ fn main() {
 		.build()
 		.unwrap();
 	ls.block_on(&rt, mongo.insert_structual_data(blocks));
+	println!("[\x1b[{}mOk\x1b[m] Documents inserted", 32);
 }
