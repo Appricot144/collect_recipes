@@ -15,26 +15,31 @@ pub enum Status {
 }
 
 pub struct Parser<'a> {
+	pub file_name: String,
 	pub reader: BufReader<&'a std::fs::File>,
 	pub block: Block,
 	pub status: Status,
+	pub position: (u32, u32),
 }
 
 impl<'a> Parser<'a> {
-	pub fn new(f: &File) -> Parser {
-		let parser = Parser {
+	pub fn new(f: &File, f_name: String) -> Parser {
+		Parser {
+			file_name: f_name,
 			reader: BufReader::new(f),
 			block: Block::Eof,
 			status: Status::Signature,
-		};
-		parser
+			position: (0, 0),
+		}
 	}
 
 	pub fn next_line(&mut self) -> String {
 		let mut line = String::new();
+		self.position.0 += self.position.1; //position start line set
 
 		loop {
 			let num_bytes = self.reader.read_line(&mut line).expect("failed to read line");
+			self.position.1 += 1; 			//position end line ++
 
 			//ret EoF
 			if num_bytes == 0 {
@@ -51,7 +56,7 @@ impl<'a> Parser<'a> {
 			}
 
 			//skip Blank-line, space, tab
-			let white: &[_] = &[' ', '\t', '\n'];
+			let white: &[_] = &[' ', '\t', '\n', '\r'];
 			line = line.trim_start_matches(white).to_string();
 			if line.len() == 0 { continue }
 
@@ -82,7 +87,11 @@ impl<'a> Parser<'a> {
 		// Resource or ... ?
 		if Parser::is_resource(&words[0]) {
 			if !do_flag {
-				self.block = ResourceBlock::create_def_block(words);
+				self.block = ResourceBlock::create_def_block(
+					words,
+					self.file_name.clone(),
+					self.position.1
+				);
 				self
 			} else {
 				ResourceBlock::create_block(words, self)

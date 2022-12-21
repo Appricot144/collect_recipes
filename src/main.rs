@@ -1,7 +1,7 @@
 // chef recipe を受け取り、コードの構造データをmongoDBに登録する
 mod block;	
-mod parser;	
-mod mongo;	
+mod parser;
+mod mongo;
 
 use std::env;
 use std::fs::File;
@@ -11,9 +11,9 @@ use crate::parser::Parser;
 use crate::mongo::ConnectionInfo;
 
 
-fn parse_file(f: &File) -> Vec<Block>{
+fn parse_file(f: &File, filename: String) -> Vec<Block>{
 	let mut blocks: Vec<Block> = Vec::new();
-	let mut parser = Parser::new(f);
+	let mut parser = Parser::new(f, filename);
 	loop {
 		parser = parser.do_parse();
 		if let Block::Eof = parser.block { break }
@@ -32,7 +32,7 @@ fn main() {
 	let f = File::open(filename).expect("Failed open file");
 
 	// parse recipe file
-	let blocks = parse_file(&f);
+	let blocks = parse_file(&f, filename.to_string());
 
 	// print blocks
 	// for block in blocks.to_vec() {

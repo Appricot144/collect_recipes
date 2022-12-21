@@ -1,6 +1,7 @@
 use serde::Serialize;
 use crate::parser::{Parser, Status};
 
+
 #[derive(Debug, Clone, Serialize)]
 pub enum Block {
 	Statement(StatementBlock),
@@ -54,6 +55,9 @@ pub struct StatementBlock {
 	statement_type: String,
 	statement_name: String,
 	contents: Vec<Block>,
+	source: String,
+	start_line: u32,
+	end_line: u32,
 }
 
 impl StatementBlock {
@@ -61,6 +65,7 @@ impl StatementBlock {
 		let statement_block = StatementBlock {
 			statement_type: words[0].to_string(),
 			statement_name: words[1].to_string(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				parser.status = Status::Contents;
@@ -74,7 +79,9 @@ impl StatementBlock {
 				}
 				
 				blocks
-			},		
+			},
+			source: parser.file_name.clone(),
+			end_line: parser.position.1,
 		};
 		parser.block = Block::Statement(statement_block);
 		parser
@@ -128,6 +135,7 @@ impl IfBlock {
 		let if_blk = StatementBlock {
 			statement_type: words[0].to_string(),
 			statement_name: words[1].to_string(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				loop {
@@ -152,6 +160,8 @@ impl IfBlock {
 				}
 				blocks
 			},
+			end_line: parser.position.1,
+			source: parser.file_name.clone(),
 		};
 		self.blocks.push(Block::Statement(if_blk)); // if 文の格納
 		parser
@@ -161,6 +171,7 @@ impl IfBlock {
 		let elsif_blk = StatementBlock {
 			statement_type: words[0].clone(),
 			statement_name: words[1].clone(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				loop {
@@ -185,6 +196,8 @@ impl IfBlock {
 				}
 				blocks
 			},
+			end_line: parser.position.1,
+			source: parser.file_name.clone(),
 		};
 		self.blocks.push(Block::Statement(elsif_blk)); // elsif 文の格納
 		parser
@@ -194,6 +207,7 @@ impl IfBlock {
 		let else_blk = StatementBlock {
 			statement_type: "else".to_string(),
 			statement_name: "".to_string(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				loop {
@@ -216,6 +230,8 @@ impl IfBlock {
 				}
 				blocks
 			},
+			end_line: parser.position.1,
+			source: parser.file_name.clone(),
 		};
 		self.blocks.push(Block::Statement(else_blk)); // else 文の格納
 		parser
@@ -269,6 +285,7 @@ impl CaseBlock {
 		let case_blk = StatementBlock {
 			statement_type: words[0].to_string(),
 			statement_name: words[1].to_string(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				loop {
@@ -293,6 +310,8 @@ impl CaseBlock {
 				}
 				blocks
 			},
+			end_line: parser.position.1,
+			source: parser.file_name.clone(),
 		};
 		self.blocks.push(Block::Statement(case_blk)); // case 文の格納
 		parser
@@ -302,6 +321,7 @@ impl CaseBlock {
 		let when_blk = StatementBlock {
 			statement_type: words[0].clone(),
 			statement_name: words[1].clone(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				parser.status = Status::Contents;
@@ -328,6 +348,8 @@ impl CaseBlock {
 				}
 				blocks
 			},
+			end_line: parser.position.1,
+			source: parser.file_name.clone(),
 		};
 		self.blocks.push(Block::Statement(when_blk)); // elsif 文の格納
 		parser
@@ -337,6 +359,7 @@ impl CaseBlock {
 		let else_blk = StatementBlock {
 			statement_type: "else".to_string(),
 			statement_name: "".to_string(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				parser.status = Status::Contents;
@@ -362,6 +385,8 @@ impl CaseBlock {
 				
 				blocks
 			},
+			end_line: parser.position.1,
+			source: parser.file_name.clone(),
 		};
 		self.blocks.push(Block::Statement(else_blk)); // case 文の格納
 		parser
@@ -373,13 +398,19 @@ pub struct ResourceBlock {
 	resource_type: String,
 	resource_name: String,
 	contents: Vec<Block>,
+	source: String,
+	start_line: u32,
+	end_line: u32,
 }
 
 impl ResourceBlock {
-	pub fn create_def_block(words: Vec<&str>) -> Block {
+	pub fn create_def_block(words: Vec<&str>, filename: String, position: u32) -> Block {
 		let resource_block = ResourceBlock {
 			resource_type: words[0].to_string(),
 			resource_name: words[1].to_string(),
+			start_line: position,
+			source: filename.clone(),
+			end_line: position,
 			contents: { Vec::new() },
 		};
 		Block::Resource(resource_block)
@@ -389,6 +420,7 @@ impl ResourceBlock {
 		let resource_block = ResourceBlock {
 			resource_type: words[0].to_string(),
 			resource_name: words[1].to_string(),
+			start_line: parser.position.1,
 			contents: {
 				let mut blocks: Vec<Block> = Vec::new();
 				parser.status = Status::Contents;
@@ -403,6 +435,8 @@ impl ResourceBlock {
 				
 				blocks
 			},
+			source: parser.file_name.clone(),
+			end_line: parser.position.1,
 		};
 		
 		parser.block = Block::Resource(resource_block);
@@ -418,10 +452,18 @@ pub struct Property {
 
 impl Property {
 	pub fn create_property(words: Vec<&str>) -> Block {
-		let property = Property {
-			property: words[0].to_string(),
-			value: words[1].to_string(),
-		};
-		Block::Property(property)
+		if words.len() > 1 {
+			let property = Property {
+				property: words[0].to_string(),
+				value: words[1].to_string(),
+			};
+			Block::Property(property)
+		} else {
+			let property = Property {
+				property: words[0].to_string(),
+				value: "".to_string(),
+			};
+			Block::Property(property)
+		}
 	}
 }

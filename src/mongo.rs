@@ -18,7 +18,7 @@ impl<'a> ConnectionInfo<'a> {
 			url_str: 	"mongodb://localhost:27017",
 			app_name:	"collect recipe program",
 			db_name: 	"test",						// "chef_recipes"
-			cll_name: 	"test_collection"			// "structs"
+			cll_name: 	"test_coll"			// "structs"
 		}
 	}
 
